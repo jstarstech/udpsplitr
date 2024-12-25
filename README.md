@@ -16,6 +16,7 @@ Both the client and server proxies have the following configuration options, whi
 - `CLIENT_RESPONSE_IP`: The IP address of the client to receive responses.
 - `CLIENT_RESPONSE_PORT`: The port to receive responses from the target server (default: `27818`).
 - `MTU_SIZE`: The Maximum Transmission Unit size (default: `1450`).
+- `ENABLE_FRAGMENTATION`: A flag to enable or disable packet fragmentation and reassembly (default: `true`).
 
 ## Usage
 
@@ -34,6 +35,10 @@ node app.js server
 ```sh
 node app.js client
 ```
+
+## Handling MTU and Fragmentation
+
+The proxy implementation includes a mechanism to handle packet fragmentation and reassembly. This mechanism can be enabled or disabled using the `ENABLE_FRAGMENTATION` flag. When enabled, the proxy will fragment messages that exceed the MTU size and reassemble them upon receipt.
 
 ## Running Tests
 

@@ -9,6 +9,7 @@ const config = {
   SERVER_IP: process.env.SERVER_IP || "192.168.1.1",
   SERVER_PORT: Number(process.env.SERVER_PORT) || 27817,
   MTU_SIZE: Number(process.env.MTU_SIZE) || 1450,
+  ENABLE_FRAGMENTATION: process.env.ENABLE_FRAGMENTATION === "true",
   TARGET_IP: process.env.TARGET_IP || "127.0.0.1",
   TARGET_PORT: Number(process.env.TARGET_PORT) || 443,
   CLIENT_RESPONSE_IP: process.env.CLIENT_RESPONSE_IP || "192.168.99.100"

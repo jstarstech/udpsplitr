@@ -1,4 +1,5 @@
 import dgram from "dgram";
+import readline from "node:readline";
 import config from "./config.js";
 
 function startServer() {
@@ -22,6 +23,22 @@ function startServer() {
   // Create UDP socket for sending responses to clients
   const clientResponseSocket = dgram.createSocket("udp4");
 
+  let incomingTraffic = 0;
+  let outgoingTraffic = 0;
+
+  function displayTraffic() {
+    console.log(`Traffic - In: ${(incomingTraffic / (1024 * 1024)).toFixed(2)} MB, Out: ${(outgoingTraffic / (1024 * 1024)).toFixed(2)} MB`);
+  }
+
+  setInterval(displayTraffic, 10000); // Display traffic every 10 seconds
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.on('line', displayTraffic);
+
   // Bind the server socket to the specified IP and port
   serverSocket.bind(SERVER_PORT, SERVER_IP, () => {
     console.log(
@@ -36,6 +53,8 @@ function startServer() {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
+
+    outgoingTraffic += response.length;
 
     // Forward the response back to the client
     clientResponseSocket.send(
@@ -59,6 +78,8 @@ function startServer() {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
+
+    incomingTraffic += msg.length;
 
     // Forward the data to the target server
     targetSocket.send(msg, TARGET_PORT, TARGET_IP, (err) => {

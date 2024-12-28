@@ -1,4 +1,5 @@
 import dgram from "dgram";
+import readline from "node:readline";
 import config from "./config.js";
 
 function startClient() {
@@ -21,6 +22,22 @@ function startClient() {
     address: "127.0.0.1",
     port: 52820,
   };
+
+  let incomingTraffic = 0;
+  let outgoingTraffic = 0;
+
+  function displayTraffic() {
+    console.log(`Traffic - In: ${(incomingTraffic / (1024 * 1024)).toFixed(2)} MB, Out: ${(outgoingTraffic / (1024 * 1024)).toFixed(2)} MB`);
+  }
+
+  setInterval(displayTraffic, 10000); // Display traffic every 10 seconds
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.on('line', displayTraffic);
 
   // Bind the client proxy socket to the specified IP and port
   clientProxySocket.bind(CLIENT_PROXY_PORT, CLIENT_IP, () => {
@@ -51,6 +68,8 @@ function startClient() {
       return;
     }
 
+    incomingTraffic += msg.length;
+
     // Forward the data to the server
     serverSocket.send(msg, SERVER_PORT, SERVER_IP, (err) => {
       if (err) {
@@ -66,6 +85,8 @@ function startClient() {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
+
+    outgoingTraffic += msg.length;
 
     // Forward the response back to the client
     clientProxySocket.send(

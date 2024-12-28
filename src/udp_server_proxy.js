@@ -30,7 +30,7 @@ function startServer() {
   });
 
   // Receive the response from the target server
-  targetSocket.on("message", (response, targetRinfo) => {
+  targetSocket.on("message", (response) => {
     // Ensure the data size does not exceed the MTU size
     if (response.length > MTU_SIZE) {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
@@ -53,7 +53,7 @@ function startServer() {
     );
   });
 
-  serverSocket.on("message", (msg, rinfo) => {
+  serverSocket.on("message", (msg) => {
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);

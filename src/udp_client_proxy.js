@@ -9,7 +9,7 @@ function startClient() {
     CLIENT_RESPONSE_PORT,
     SERVER_IP,
     SERVER_PORT,
-    MTU_SIZE
+    MTU_SIZE,
   } = config;
 
   // Create UDP sockets
@@ -37,9 +37,12 @@ function startClient() {
   });
 
   clientProxySocket.on("message", (msg, rinfo) => {
-    if (rinfo.address !== clientRinfo.address || rinfo.port !== clientRinfo.port) { 
-        clientRinfo.address = rinfo.address;
-        clientRinfo.port = rinfo.port;
+    if (
+      rinfo.address !== clientRinfo.address ||
+      rinfo.port !== clientRinfo.port
+    ) {
+      clientRinfo.address = rinfo.address;
+      clientRinfo.port = rinfo.port;
     }
 
     // Ensure the data size does not exceed the MTU size
@@ -57,7 +60,7 @@ function startClient() {
     });
   });
 
-  clientResponseSocket.on("message", (msg, rinfo) => {
+  clientResponseSocket.on("message", (msg) => {
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
@@ -71,9 +74,7 @@ function startClient() {
       clientRinfo.address,
       (err) => {
         if (err) {
-          console.error(
-            `Error forwarding response to client: ${err.message}`
-          );
+          console.error(`Error forwarding response to client: ${err.message}`);
           return;
         }
       }

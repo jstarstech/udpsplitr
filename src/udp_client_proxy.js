@@ -36,12 +36,12 @@ function startClient() {
     );
   });
 
-  clientProxySocket.once("message", (_msg, rinfo) => {
-    clientRinfo.address = rinfo.address;
-    clientRinfo.port = rinfo.port;
-  });
-
   clientProxySocket.on("message", (msg, rinfo) => {
+    if (rinfo.address !== clientRinfo.address || rinfo.port !== clientRinfo.port) { 
+        clientRinfo.address = rinfo.address;
+        clientRinfo.port = rinfo.port;
+    }
+
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
       console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);

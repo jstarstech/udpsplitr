@@ -27,7 +27,7 @@ function startClient() {
   let outgoingTraffic = 0;
 
   function displayTraffic() {
-    console.log(`Traffic - In: ${(incomingTraffic / (1024 * 1024)).toFixed(2)} MB, Out: ${(outgoingTraffic / (1024 * 1024)).toFixed(2)} MB`);
+    console.log(`Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`);
   }
 
   setInterval(displayTraffic, 10000); // Display traffic every 10 seconds

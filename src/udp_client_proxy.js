@@ -2,7 +2,7 @@ import dgram from "dgram";
 import readline from "node:readline";
 import config from "./config.js";
 
-function startClient() {
+function startClient(pingMode = false) {
   // Configuration
   const {
     CLIENT_IP,
@@ -25,19 +25,23 @@ function startClient() {
 
   let incomingTraffic = 0;
   let outgoingTraffic = 0;
+  let sentMessage = null;
+  let sentTime = null;
 
   function displayTraffic() {
-    console.log(`Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`);
+    console.log(
+      `Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`
+    );
   }
 
   setInterval(displayTraffic, 10000); // Display traffic every 10 seconds
 
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
-  rl.on('line', displayTraffic);
+  rl.on("line", displayTraffic);
 
   // Bind the client proxy socket to the specified IP and port
   clientProxySocket.bind(CLIENT_PROXY_PORT, CLIENT_IP, () => {
@@ -56,6 +60,8 @@ function startClient() {
     console.log(
       `Listening for server responses on ${CLIENT_IP}:${CLIENT_RESPONSE_PORT}`
     );
+  });
+
   clientResponseSocket.on("error", (err) => {
     console.error(`Client response socket error: ${err.message}`);
     process.exit(1);
@@ -94,7 +100,13 @@ function startClient() {
       return;
     }
 
-    outgoingTraffic += msg.length;
+    incomingTraffic += msg.length;
+
+    if (pingMode && sentMessage && msg.equals(sentMessage)) {
+      const latency = Date.now() - sentTime;
+      console.log(`Echo message received. Latency: ${latency} ms`);
+      return;
+    }
 
     // Forward the response back to the client
     clientProxySocket.send(
@@ -109,6 +121,25 @@ function startClient() {
       }
     );
   });
+
+  if (pingMode) {
+    console.log("Start pinging server every 2 seconds");
+
+    setInterval(() => {
+      sentMessage = Buffer.from("Echo test message");
+      sentTime = Date.now();
+
+      outgoingTraffic += sentMessage.length;
+
+      console.log("Sending ping messages to the server");
+
+      serverSocket.send(sentMessage, SERVER_PORT, SERVER_IP, (err) => {
+        if (err) {
+          console.error(`Error sending ping message: ${err.message}`);
+        }
+      });
+    }, 2000); // Send echo message every 2 seconds
+  }
 }
 
 export { startClient };

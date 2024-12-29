@@ -46,6 +46,11 @@ function startServer() {
     );
   });
 
+  serverSocket.on("error", (err) => { 
+    console.error(`Server socket error: ${err.message}`);
+    process.exit(1);
+  });
+
   // Receive the response from the target server
   targetSocket.on("message", (response) => {
     // Ensure the data size does not exceed the MTU size

@@ -46,11 +46,19 @@ function startClient() {
     );
   });
 
+  clientProxySocket.on("error", (err) => {
+    console.error(`Client proxy socket error: ${err.message}`);
+    process.exit(1);
+  });
+
   // Bind the client response socket to the specified IP and port
   clientResponseSocket.bind(CLIENT_RESPONSE_PORT, CLIENT_IP, () => {
     console.log(
       `Listening for server responses on ${CLIENT_IP}:${CLIENT_RESPONSE_PORT}`
     );
+  clientResponseSocket.on("error", (err) => {
+    console.error(`Client response socket error: ${err.message}`);
+    process.exit(1);
   });
 
   clientProxySocket.on("message", (msg, rinfo) => {

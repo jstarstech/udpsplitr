@@ -11,9 +11,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "dotenv": "^16.4.7"
+    "dotenv": "17.2.1"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "jest": "30.0.5"
   }
 }

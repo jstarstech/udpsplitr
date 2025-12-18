@@ -82,7 +82,7 @@ function startClient(pingMode = false) {
       return;
     }
 
-    incomingTraffic += msg.length;
+    outgoingTraffic += msg.length;
 
     // Forward the data to the server
     serverSocket.send(msg, SERVER_PORT, SERVER_IP, (err) => {

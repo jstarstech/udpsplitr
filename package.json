@@ -9,6 +9,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "dotenv": "17.2.1"
+    "dotenv": "17.2.3"
   }
 }

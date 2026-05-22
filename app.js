@@ -2,19 +2,27 @@ import { startServer } from "./src/udp_server_proxy.js";
 import { startClient } from "./src/udp_client_proxy.js";
 import { pathToFileURL } from "node:url";
 
-export function parseArgs(args) {
-  const mode = args[0];
+const VALID_MODES = ["server", "client"];
+
+export function parseArgs(args, env = process.env) {
+  const cliMode = args[0];
+  const envMode = env.MODE;
+  const mode = VALID_MODES.includes(cliMode)
+    ? cliMode
+    : VALID_MODES.includes(envMode)
+      ? envMode
+      : null;
 
   return {
     mode,
     echoMode: args.includes("--echo-mode"),
     pingMode: args.includes("--ping-mode"),
-    valid: Boolean(mode) && ["server", "client"].includes(mode),
+    valid: Boolean(mode),
   };
 }
 
 export function main(args = process.argv.slice(2), deps = {}) {
-  const { mode, echoMode, pingMode, valid } = parseArgs(args);
+  const { mode, echoMode, pingMode, valid } = parseArgs(args, deps.env);
   const logger = deps.logger ?? console;
   const runServer = deps.startServer ?? startServer;
   const runClient = deps.startClient ?? startClient;

@@ -1,0 +1,10 @@
+services:
+  udpsplitr:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "${SERVER_PORT:-27817}:${SERVER_PORT:-27817}/udp"
+      - "${CLIENT_PROXY_PORT:-27817}:${CLIENT_PROXY_PORT:-27817}/udp"
+      - "${CLIENT_RESPONSE_PORT:-27818}:${CLIENT_RESPONSE_PORT:-27818}/udp"
+    restart: unless-stopped

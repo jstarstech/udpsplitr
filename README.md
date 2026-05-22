@@ -32,6 +32,8 @@ When `NAT_TRAVERSAL` is enabled, the client response socket periodically sends a
 
 Use the `app.js` entry file to start the proxy in either server or client mode.
 
+You can pass the mode as a CLI argument or via `MODE=server|client` in the environment. If both are set, the CLI argument wins.
+
 #### Server Mode
 
 ```sh
@@ -44,6 +46,13 @@ node app.js server
 node app.js client
 ```
 
+#### Environment Mode
+
+```sh
+MODE=server node app.js
+MODE=client node app.js
+```
+
 ## Running Tests
 
 To run the tests for this project, use the following command:
@@ -51,3 +60,47 @@ To run the tests for this project, use the following command:
 ```sh
 npm test
 ```
+
+## Docker
+
+### Temporary Echo/Ping
+
+#### Server Machine
+
+```sh
+docker run -d --rm --env-file .env --name udpsplitr-server udpsplitr node app.js server --echo-mode
+```
+
+#### Client Machine
+
+```sh
+docker run -d --rm --env-file .env --name udpsplitr-client udpsplitr node app.js client --ping-mode
+```
+
+### Client-Server Compose
+
+Copy [env.example](/home/maks/Development/personal/udpsplit/env.example) to `.env` on each machine:
+
+```sh
+cp env.example .env
+```
+
+Set the mode in `.env` to match the machine role:
+
+```sh
+# server machine
+MODE=server
+
+# client machine
+MODE=client
+```
+
+Run Compose normally on both machines:
+
+```sh
+docker compose up --build
+```
+
+The server machine should use `MODE=server`. The client machine should use `MODE=client`.
+
+The Compose service loads environment values from the project `.env` file.

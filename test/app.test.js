@@ -23,6 +23,24 @@ test("parseArgs recognizes client mode with ping flag", () => {
   });
 });
 
+test("parseArgs falls back to env mode", () => {
+  assert.deepEqual(parseArgs([], { MODE: "server" }), {
+    mode: "server",
+    echoMode: false,
+    pingMode: false,
+    valid: true,
+  });
+});
+
+test("parseArgs prefers cli mode over env mode", () => {
+  assert.deepEqual(parseArgs(["client"], { MODE: "server" }), {
+    mode: "client",
+    echoMode: false,
+    pingMode: false,
+    valid: true,
+  });
+});
+
 test("main dispatches server mode", () => {
   const calls = [];
 
@@ -59,6 +77,20 @@ test("main returns usage code for invalid args", () => {
   assert.equal(exitCode, 1);
   assert.equal(messages.length, 1);
   assert.match(messages[0], /^Usage: node app\.js/);
+});
+
+test("main dispatches env mode when cli mode is absent", () => {
+  const calls = [];
+
+  const exitCode = main([], {
+    env: { MODE: "server" },
+    startServer: () => calls.push(["server"]),
+    startClient: () => calls.push(["client"]),
+    logger: { info: () => {} },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(calls, [["server"]]);
 });
 
 test("direct execution without args exits with usage", () => {

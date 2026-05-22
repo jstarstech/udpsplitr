@@ -2,8 +2,19 @@ import dgram from "dgram";
 import readline from "node:readline";
 import config from "./config.js";
 
-function startClient(pingMode = false) {
-  // Configuration
+function createClientProxy(pingMode = false, deps = {}) {
+  const activeConfig = deps.config ?? config;
+  const dgramImpl = deps.dgram ?? dgram;
+  const readlineImpl = deps.readline ?? readline;
+  const logger = deps.logger ?? console;
+  const setIntervalImpl = deps.setInterval ?? setInterval;
+  const setTimeoutImpl = deps.setTimeout ?? setTimeout;
+  const clearTimeoutImpl = deps.clearTimeout ?? clearTimeout;
+  const now = deps.now ?? Date.now;
+  const exit = deps.exit ?? ((code) => process.exit(code));
+  const log = logger.log ?? logger.info ?? (() => {});
+  const error = logger.error ?? (() => {});
+
   const {
     CLIENT_IP,
     CLIENT_PROXY_PORT,
@@ -11,12 +22,12 @@ function startClient(pingMode = false) {
     SERVER_IP,
     SERVER_PORT,
     MTU_SIZE,
-  } = config;
+  } = activeConfig;
 
   // Create UDP sockets
-  const clientProxySocket = dgram.createSocket("udp4");
-  const clientResponseSocket = dgram.createSocket("udp4");
-  const serverSocket = dgram.createSocket("udp4");
+  const clientProxySocket = dgramImpl.createSocket("udp4");
+  const clientResponseSocket = dgramImpl.createSocket("udp4");
+  const serverSocket = dgramImpl.createSocket("udp4");
   const PROBE_ID_BYTES = 8;
   const PING_DATA_BYTES = 56;
   const PING_INTERVAL_MS = 1000;
@@ -30,12 +41,12 @@ function startClient(pingMode = false) {
   let outgoingTraffic = 0;
 
   function displayTraffic() {
-    console.log(
+    log(
       `Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`
     );
   }
 
-  setInterval(displayTraffic, 10000); // Display traffic every 10 seconds
+  setIntervalImpl(displayTraffic, 10000); // Display traffic every 10 seconds
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -46,39 +57,39 @@ function startClient(pingMode = false) {
 
   // Bind the client proxy socket to the specified IP and port
   clientProxySocket.bind(CLIENT_PROXY_PORT, CLIENT_IP, () => {
-    console.log(
+    log(
       `Listening for client connections on ${CLIENT_IP}:${CLIENT_PROXY_PORT}`
     );
   });
 
   clientProxySocket.on("error", (err) => {
-    console.error(`Client proxy socket error: ${err.message}`);
-    process.exit(1);
+    error(`Client proxy socket error: ${err.message}`);
+    exit(1);
   });
 
   // Bind the client response socket to the specified IP and port
   clientResponseSocket.bind(CLIENT_RESPONSE_PORT, CLIENT_IP, () => {
-    console.log(
+    log(
       `Listening for server responses on ${CLIENT_IP}:${CLIENT_RESPONSE_PORT}`
     );
   });
 
   clientResponseSocket.on("error", (err) => {
-    console.error(`Client response socket error: ${err.message}`);
-    process.exit(1);
+    error(`Client response socket error: ${err.message}`);
+    exit(1);
   });
 
   clientProxySocket.on("message", (msg, rinfo) => {
     if (!activeClientRinfo) {
       activeClientRinfo = { address: rinfo.address, port: rinfo.port };
-      console.log(
+      log(
         `Bound upstream responses to client ${activeClientRinfo.address}:${activeClientRinfo.port}`
       );
     } else if (
       rinfo.address !== activeClientRinfo.address ||
       rinfo.port !== activeClientRinfo.port
     ) {
-      console.error(
+      error(
         `Rejecting packet from ${rinfo.address}:${rinfo.port}; this proxy only supports one active client at a time (${activeClientRinfo.address}:${activeClientRinfo.port})`
       );
       return;
@@ -86,7 +97,7 @@ function startClient(pingMode = false) {
 
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
-      console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+      error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
 
@@ -95,7 +106,7 @@ function startClient(pingMode = false) {
     // Forward the data to the server
     serverSocket.send(msg, SERVER_PORT, SERVER_IP, (err) => {
       if (err) {
-        console.error(`Error forwarding data to server: ${err.message}`);
+        error(`Error forwarding data to server: ${err.message}`);
         return;
       }
     });
@@ -104,7 +115,7 @@ function startClient(pingMode = false) {
   clientResponseSocket.on("message", (msg) => {
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
-      console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+      error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
 
@@ -112,7 +123,7 @@ function startClient(pingMode = false) {
 
     if (pingMode) {
       if (msg.length < PROBE_ID_BYTES) {
-        console.error("Dropping ping response without a probe id");
+        error("Dropping ping response without a probe id");
         return;
       }
 
@@ -120,22 +131,22 @@ function startClient(pingMode = false) {
       const pendingProbe = pendingProbes.get(probeId);
 
       if (pendingProbe === undefined) {
-        console.error(`Dropping ping response for unknown probe ${probeId}`);
+        error(`Dropping ping response for unknown probe ${probeId}`);
         return;
       }
 
       clearTimeout(pendingProbe.timeoutId);
       pendingProbes.delete(probeId);
 
-      const latency = Date.now() - pendingProbe.sentTime;
-      console.log(
+      const latency = now() - pendingProbe.sentTime;
+      log(
         `${msg.length} bytes from ${SERVER_IP}:${SERVER_PORT}: icmp_seq=${probeId.toString()} time=${latency} ms`
       );
       return;
     }
 
     if (!activeClientRinfo) {
-      console.error("Dropping response because no client is currently bound");
+      error("Dropping response because no client is currently bound");
       return;
     }
 
@@ -146,7 +157,7 @@ function startClient(pingMode = false) {
       activeClientRinfo.address,
       (err) => {
         if (err) {
-          console.error(`Error forwarding response to client: ${err.message}`);
+          error(`Error forwarding response to client: ${err.message}`);
           return;
         }
       }
@@ -155,18 +166,18 @@ function startClient(pingMode = false) {
 
   if (pingMode) {
     const pingTarget = `${SERVER_IP}:${SERVER_PORT}`;
-    console.log(`PING ${pingTarget} (${SERVER_IP}) ${PING_DATA_BYTES} data bytes`);
+    log(`PING ${pingTarget} (${SERVER_IP}) ${PING_DATA_BYTES} data bytes`);
 
-    setInterval(() => {
+    setIntervalImpl(() => {
       const probeId = nextProbeId++;
       const payload = Buffer.alloc(PING_DATA_BYTES);
       const sentMessage = Buffer.allocUnsafe(PROBE_ID_BYTES + payload.length);
       sentMessage.writeBigUInt64BE(probeId, 0);
       payload.copy(sentMessage, PROBE_ID_BYTES);
-      const sentTime = Date.now();
-      const timeoutId = setTimeout(() => {
+      const sentTime = now();
+      const timeoutId = setTimeoutImpl(() => {
         if (pendingProbes.delete(probeId)) {
-          console.error(`Request timeout for icmp_seq ${probeId.toString()}`);
+          error(`Request timeout for icmp_seq ${probeId.toString()}`);
         }
       }, PROBE_TIMEOUT_MS);
 
@@ -176,13 +187,25 @@ function startClient(pingMode = false) {
 
       serverSocket.send(sentMessage, SERVER_PORT, SERVER_IP, (err) => {
         if (err) {
-          clearTimeout(timeoutId);
+          clearTimeoutImpl(timeoutId);
           pendingProbes.delete(probeId);
-          console.error(`Error sending ping message: ${err.message}`);
+          error(`Error sending ping message: ${err.message}`);
         }
       });
     }, PING_INTERVAL_MS);
   }
+
+  return {
+    clientProxySocket,
+    clientResponseSocket,
+    serverSocket,
+    getActiveClientRinfo: () => activeClientRinfo,
+    pendingProbes,
+  };
 }
 
-export { startClient };
+function startClient(pingMode = false, deps = {}) {
+  return createClientProxy(pingMode, deps);
+}
+
+export { createClientProxy, startClient };

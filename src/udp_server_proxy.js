@@ -2,8 +2,16 @@ import dgram from "dgram";
 import readline from "node:readline";
 import config from "./config.js";
 
-function startServer(echoMode = false) {
-  // Configuration
+function createServerProxy(echoMode = false, deps = {}) {
+  const activeConfig = deps.config ?? config;
+  const dgramImpl = deps.dgram ?? dgram;
+  const readlineImpl = deps.readline ?? readline;
+  const logger = deps.logger ?? console;
+  const setIntervalImpl = deps.setInterval ?? setInterval;
+  const exit = deps.exit ?? ((code) => process.exit(code));
+  const log = logger.log ?? logger.info ?? (() => {});
+  const error = logger.error ?? (() => {});
+
   const {
     SERVER_IP,
     SERVER_PORT,
@@ -12,29 +20,29 @@ function startServer(echoMode = false) {
     CLIENT_RESPONSE_IP,
     CLIENT_RESPONSE_PORT,
     MTU_SIZE,
-  } = config;
+  } = activeConfig;
 
   // Create UDP socket for the server
-  const serverSocket = dgram.createSocket("udp4");
+  const serverSocket = dgramImpl.createSocket("udp4");
 
   // Create UDP socket for forwarding data to the target server
-  const targetSocket = dgram.createSocket("udp4");
+  const targetSocket = dgramImpl.createSocket("udp4");
 
   // Create UDP socket for sending responses to clients
-  const clientResponseSocket = dgram.createSocket("udp4");
+  const clientResponseSocket = dgramImpl.createSocket("udp4");
 
   let incomingTraffic = 0;
   let outgoingTraffic = 0;
 
   function displayTraffic() {
-    console.log(
+    log(
       `Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`
     );
   }
 
-  setInterval(displayTraffic, 10000); // Display traffic every 10 seconds
+  setIntervalImpl(displayTraffic, 10000); // Display traffic every 10 seconds
 
-  const rl = readline.createInterface({
+  const rl = readlineImpl.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
@@ -43,18 +51,18 @@ function startServer(echoMode = false) {
 
   // Bind the server socket to the specified IP and port
   serverSocket.bind(SERVER_PORT, SERVER_IP, () => {
-    console.log(
+    log(
       `Listening for client connections on ${SERVER_IP}:${SERVER_PORT}`
     );
 
     if (echoMode) {
-      console.log("Echo mode activated");
+      log("Echo mode activated");
     }
   });
 
   serverSocket.on("error", (err) => {
-    console.error(`Server socket error: ${err.message}`);
-    process.exit(1);
+    error(`Server socket error: ${err.message}`);
+    exit(1);
   });
 
   function handleMessage(msg) {
@@ -62,14 +70,14 @@ function startServer(echoMode = false) {
 
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
-      console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+      error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
 
     // Forward the data to the target server
     targetSocket.send(msg, TARGET_PORT, TARGET_IP, (err) => {
       if (err) {
-        console.error(`Error forwarding data to target server: ${err.message}`);
+        error(`Error forwarding data to target server: ${err.message}`);
         return;
       }
     });
@@ -80,7 +88,7 @@ function startServer(echoMode = false) {
 
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
-      console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+      error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
       return;
     }
 
@@ -93,7 +101,7 @@ function startServer(echoMode = false) {
       CLIENT_RESPONSE_IP,
       (err) => {
         if (err) {
-          console.error(`Error echoing message: ${err.message}`);
+          error(`Error echoing message: ${err.message}`);
         }
       }
     );
@@ -106,7 +114,7 @@ function startServer(echoMode = false) {
     targetSocket.on("message", (response) => {
       // Ensure the data size does not exceed the MTU size
       if (response.length > MTU_SIZE) {
-        console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+        error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
         return;
       }
 
@@ -119,15 +127,23 @@ function startServer(echoMode = false) {
         CLIENT_RESPONSE_IP,
         (err) => {
           if (err) {
-            console.error(
-              `Error forwarding response to client: ${err.message}`
-            );
+            error(`Error forwarding response to client: ${err.message}`);
             return;
           }
         }
       );
     });
   }
+
+  return {
+    serverSocket,
+    targetSocket,
+    clientResponseSocket,
+  };
 }
 
-export { startServer };
+function startServer(echoMode = false, deps = {}) {
+  return createServerProxy(echoMode, deps);
+}
+
+export { createServerProxy, startServer };

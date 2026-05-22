@@ -18,7 +18,9 @@ function startClient(pingMode = false) {
   const clientResponseSocket = dgram.createSocket("udp4");
   const serverSocket = dgram.createSocket("udp4");
   const PROBE_ID_BYTES = 8;
-  const PROBE_TIMEOUT_MS = 30000;
+  const PING_DATA_BYTES = 56;
+  const PING_INTERVAL_MS = 1000;
+  const PROBE_TIMEOUT_MS = 4000;
 
   let activeClientRinfo = null;
   let nextProbeId = 0n;
@@ -127,7 +129,7 @@ function startClient(pingMode = false) {
 
       const latency = Date.now() - pendingProbe.sentTime;
       console.log(
-        `Echo message received for probe ${probeId}. Latency: ${latency} ms`
+        `${msg.length} bytes from ${SERVER_IP}:${SERVER_PORT}: icmp_seq=${probeId.toString()} time=${latency} ms`
       );
       return;
     }
@@ -152,26 +154,25 @@ function startClient(pingMode = false) {
   });
 
   if (pingMode) {
-    console.log("Start pinging server every 2 seconds");
+    const pingTarget = `${SERVER_IP}:${SERVER_PORT}`;
+    console.log(`PING ${pingTarget} (${SERVER_IP}) ${PING_DATA_BYTES} data bytes`);
 
     setInterval(() => {
       const probeId = nextProbeId++;
-      const payload = Buffer.from("Echo test message");
+      const payload = Buffer.alloc(PING_DATA_BYTES);
       const sentMessage = Buffer.allocUnsafe(PROBE_ID_BYTES + payload.length);
       sentMessage.writeBigUInt64BE(probeId, 0);
       payload.copy(sentMessage, PROBE_ID_BYTES);
       const sentTime = Date.now();
       const timeoutId = setTimeout(() => {
         if (pendingProbes.delete(probeId)) {
-          console.error(`Ping probe ${probeId} timed out after ${PROBE_TIMEOUT_MS} ms`);
+          console.error(`Request timeout for icmp_seq ${probeId.toString()}`);
         }
       }, PROBE_TIMEOUT_MS);
 
       pendingProbes.set(probeId, { sentTime, timeoutId });
 
       outgoingTraffic += sentMessage.length;
-
-      console.log(`Sending ping message ${probeId} to the server`);
 
       serverSocket.send(sentMessage, SERVER_PORT, SERVER_IP, (err) => {
         if (err) {
@@ -180,7 +181,7 @@ function startClient(pingMode = false) {
           console.error(`Error sending ping message: ${err.message}`);
         }
       });
-    }, 2000); // Send echo message every 2 seconds
+    }, PING_INTERVAL_MS);
   }
 }
 

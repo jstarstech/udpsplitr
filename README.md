@@ -4,7 +4,7 @@ This project implements a UDP proxy that forwards traffic between a client and a
 
 The client-side proxy currently supports one active upstream client at a time. If a second client sends traffic on the proxy port, the packet is rejected instead of stealing the return path.
 
-In `--ping-mode`, the client prepends a probe ID to each echo payload and matches responses by that ID. That allows multiple outstanding probes without assuming responses arrive in order.
+In `--ping-mode`, the client prepends a probe ID to each echo payload and matches responses by that ID. The console output is formatted like standard `ping`, with a `PING ...` banner, 1-second probe intervals, and per-probe latency lines.
 
 ## Configuration
 

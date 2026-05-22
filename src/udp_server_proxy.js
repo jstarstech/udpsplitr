@@ -75,16 +75,28 @@ function startServer(echoMode = false) {
     });
   }
 
-  function handleMessageEcho(msg, rinfo) {
+  function handleMessageEcho(msg) {
     incomingTraffic += msg.length;
+
+    // Ensure the data size does not exceed the MTU size
+    if (msg.length > MTU_SIZE) {
+      console.error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
+      return;
+    }
+
     outgoingTraffic += msg.length;
 
     // Echo the message back to the client
-    clientResponseSocket.send(msg, CLIENT_RESPONSE_PORT, CLIENT_RESPONSE_IP, (err) => {
-      if (err) {
-        console.error(`Error echoing message: ${err.message}`);
+    clientResponseSocket.send(
+      msg,
+      CLIENT_RESPONSE_PORT,
+      CLIENT_RESPONSE_IP,
+      (err) => {
+        if (err) {
+          console.error(`Error echoing message: ${err.message}`);
+        }
       }
-    });
+    );
   }
 
   serverSocket.on("message", echoMode ? handleMessageEcho : handleMessage);

@@ -1,16 +1,44 @@
 {
   "name": "udpsplitr",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "description": "UDP proxy that splits client and server traffic across separate ports",
   "main": "app.js",
   "type": "module",
+  "bin": {
+    "udpsplitr": "./app.js"
+  },
   "scripts": {
     "start": "node app.js",
-    "test": "node --test"
+    "test": "node --test",
+    "check": "node --check app.js src/*.js",
+    "prepublishOnly": "npm test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "udp",
+    "proxy",
+    "nat",
+    "networking",
+    "tunneling"
+  ],
+  "author": "jstarstech",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jstarstech/udpsplitr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jstarstech/udpsplitr/issues"
+  },
+  "homepage": "https://github.com/jstarstech/udpsplitr#readme",
+  "license": "MIT",
+  "files": [
+    "app.js",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "dotenv": "17.4.2"
   }

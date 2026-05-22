@@ -2,6 +2,8 @@
 
 This project implements a UDP proxy that forwards traffic between a client and a server. The proxy is split into two parts: a client-side proxy and a server-side proxy. The client listens on two ports: one for proxying incoming data and another for receiving responses from the server. The server listens on a port for incoming data from the client and connects to the target IP:port to proxy data coming from the client proxy port.
 
+The client-side proxy currently supports one active upstream client at a time. If a second client sends traffic on the proxy port, the packet is rejected instead of stealing the return path.
+
 ## Configuration
 
 Both the client and server proxies have the following configuration options, which can be set in a `.env` file:

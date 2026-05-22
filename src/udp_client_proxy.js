@@ -18,10 +18,7 @@ function startClient(pingMode = false) {
   const clientResponseSocket = dgram.createSocket("udp4");
   const serverSocket = dgram.createSocket("udp4");
 
-  const clientRinfo = {
-    address: "127.0.0.1",
-    port: 52820,
-  };
+  let activeClientRinfo = null;
 
   let incomingTraffic = 0;
   let outgoingTraffic = 0;
@@ -68,12 +65,19 @@ function startClient(pingMode = false) {
   });
 
   clientProxySocket.on("message", (msg, rinfo) => {
-    if (
-      rinfo.address !== clientRinfo.address ||
-      rinfo.port !== clientRinfo.port
+    if (!activeClientRinfo) {
+      activeClientRinfo = { address: rinfo.address, port: rinfo.port };
+      console.log(
+        `Bound upstream responses to client ${activeClientRinfo.address}:${activeClientRinfo.port}`
+      );
+    } else if (
+      rinfo.address !== activeClientRinfo.address ||
+      rinfo.port !== activeClientRinfo.port
     ) {
-      clientRinfo.address = rinfo.address;
-      clientRinfo.port = rinfo.port;
+      console.error(
+        `Rejecting packet from ${rinfo.address}:${rinfo.port}; this proxy only supports one active client at a time (${activeClientRinfo.address}:${activeClientRinfo.port})`
+      );
+      return;
     }
 
     // Ensure the data size does not exceed the MTU size
@@ -108,11 +112,16 @@ function startClient(pingMode = false) {
       return;
     }
 
+    if (!activeClientRinfo) {
+      console.error("Dropping response because no client is currently bound");
+      return;
+    }
+
     // Forward the response back to the client
     clientProxySocket.send(
       msg,
-      clientRinfo.port,
-      clientRinfo.address,
+      activeClientRinfo.port,
+      activeClientRinfo.address,
       (err) => {
         if (err) {
           console.error(`Error forwarding response to client: ${err.message}`);

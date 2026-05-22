@@ -20,6 +20,26 @@ export function parseIntegerEnv(env, name, fallback, { min = Number.MIN_SAFE_INT
   return parsedValue;
 }
 
+export function parseBooleanEnv(env, name, fallback = false) {
+  const rawValue = env[name];
+
+  if (rawValue === undefined || rawValue === "") {
+    return fallback;
+  }
+
+  const normalizedValue = rawValue.toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalizedValue)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalizedValue)) {
+    return false;
+  }
+
+  throw new Error(`${name} must be a boolean value, got ${JSON.stringify(rawValue)}`);
+}
+
 export function createConfig(env = process.env) {
   return {
     CLIENT_IP: env.CLIENT_IP || "0.0.0.0",
@@ -46,6 +66,7 @@ export function createConfig(env = process.env) {
       max: 65535,
     }),
     CLIENT_RESPONSE_IP: env.CLIENT_RESPONSE_IP || "127.0.0.1",
+    NAT_TRAVERSAL: parseBooleanEnv(env, "NAT_TRAVERSAL", false),
   };
 }
 

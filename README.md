@@ -20,6 +20,11 @@ Both the client and server proxies have the following configuration options, whi
 - `CLIENT_RESPONSE_IP`: The IP address of the client to receive responses.
 - `CLIENT_RESPONSE_PORT`: The port to receive responses from the target server (default: `27818`).
 - `MTU_SIZE`: The Maximum Transmission Unit size (default: `1450`).
+- `NAT_TRAVERSAL`: Enables client response-port keepalives so the server learns the NAT-mapped return path for responses (default: `false`).
+
+`NAT_TRAVERSAL` is an experimental feature. It relies on periodic client keepalives to keep the response-port mapping alive through NAT and firewalls, and behavior will vary by network.
+
+When `NAT_TRAVERSAL` is enabled, the client response socket periodically sends a small keepalive packet to the server. The server uses the observed source address and port as the return path for responses instead of the static `CLIENT_RESPONSE_IP` and `CLIENT_RESPONSE_PORT` values.
 
 ## Usage
 

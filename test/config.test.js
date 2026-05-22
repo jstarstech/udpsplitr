@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createConfig, parseIntegerEnv } from "../src/config.js";
+import { createConfig, parseBooleanEnv, parseIntegerEnv } from "../src/config.js";
 
 test("parseIntegerEnv returns fallback when env value is missing", () => {
   assert.equal(
@@ -31,6 +31,18 @@ test("parseIntegerEnv rejects invalid integer strings", () => {
   );
 });
 
+test("parseBooleanEnv accepts common truthy and falsy values", () => {
+  assert.equal(parseBooleanEnv({ NAT_TRAVERSAL: "true" }, "NAT_TRAVERSAL"), true);
+  assert.equal(parseBooleanEnv({ NAT_TRAVERSAL: "0" }, "NAT_TRAVERSAL", true), false);
+});
+
+test("parseBooleanEnv rejects invalid boolean strings", () => {
+  assert.throws(
+    () => parseBooleanEnv({ NAT_TRAVERSAL: "maybe" }, "NAT_TRAVERSAL"),
+    /NAT_TRAVERSAL must be a boolean value/
+  );
+});
+
 test("createConfig uses documented defaults", () => {
   const config = createConfig({});
 
@@ -44,5 +56,6 @@ test("createConfig uses documented defaults", () => {
     TARGET_IP: "127.0.0.1",
     TARGET_PORT: 443,
     CLIENT_RESPONSE_IP: "127.0.0.1",
+    NAT_TRAVERSAL: false,
   });
 });

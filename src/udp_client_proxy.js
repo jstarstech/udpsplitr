@@ -22,6 +22,7 @@ function createClientProxy(pingMode = false, deps = {}) {
     SERVER_IP,
     SERVER_PORT,
     MTU_SIZE,
+    NAT_TRAVERSAL,
   } = activeConfig;
 
   // Create UDP sockets
@@ -32,9 +33,12 @@ function createClientProxy(pingMode = false, deps = {}) {
   const PING_DATA_BYTES = 56;
   const PING_INTERVAL_MS = 1000;
   const PROBE_TIMEOUT_MS = 4000;
+  const NAT_KEEPALIVE_PACKET = Buffer.from("UDPSPLITR:KA");
+  const NAT_KEEPALIVE_INTERVAL_MS = 5000;
 
   let activeClientRinfo = null;
   let nextProbeId = 0n;
+  let natKeepaliveInterval = null;
   const pendingProbes = new Map();
 
   let incomingTraffic = 0;
@@ -44,6 +48,33 @@ function createClientProxy(pingMode = false, deps = {}) {
     log(
       `Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`
     );
+  }
+
+  function sendNatKeepalive() {
+    if (!NAT_TRAVERSAL) {
+      return;
+    }
+
+    outgoingTraffic += NAT_KEEPALIVE_PACKET.length;
+    clientResponseSocket.send(
+      NAT_KEEPALIVE_PACKET,
+      SERVER_PORT,
+      SERVER_IP,
+      (err) => {
+        if (err) {
+          error(`Error sending NAT keepalive: ${err.message}`);
+        }
+      }
+    );
+  }
+
+  function startNatKeepalive() {
+    if (!NAT_TRAVERSAL || natKeepaliveInterval) {
+      return;
+    }
+
+    sendNatKeepalive();
+    natKeepaliveInterval = setIntervalImpl(sendNatKeepalive, NAT_KEEPALIVE_INTERVAL_MS);
   }
 
   setIntervalImpl(displayTraffic, 10000); // Display traffic every 10 seconds
@@ -72,6 +103,7 @@ function createClientProxy(pingMode = false, deps = {}) {
     log(
       `Listening for server responses on ${CLIENT_IP}:${CLIENT_RESPONSE_PORT}`
     );
+    startNatKeepalive();
   });
 
   clientResponseSocket.on("error", (err) => {
@@ -113,6 +145,10 @@ function createClientProxy(pingMode = false, deps = {}) {
   });
 
   clientResponseSocket.on("message", (msg) => {
+    if (NAT_TRAVERSAL && msg.equals(NAT_KEEPALIVE_PACKET)) {
+      return;
+    }
+
     // Ensure the data size does not exceed the MTU size
     if (msg.length > MTU_SIZE) {
       error(`Data size exceeds MTU size of ${MTU_SIZE} bytes`);
@@ -201,6 +237,7 @@ function createClientProxy(pingMode = false, deps = {}) {
     serverSocket,
     getActiveClientRinfo: () => activeClientRinfo,
     pendingProbes,
+    sendNatKeepalive,
   };
 }
 

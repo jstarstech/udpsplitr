@@ -20,6 +20,7 @@ function createServerProxy(echoMode = false, deps = {}) {
     CLIENT_RESPONSE_IP,
     CLIENT_RESPONSE_PORT,
     MTU_SIZE,
+    NAT_TRAVERSAL,
   } = activeConfig;
 
   // Create UDP socket for the server
@@ -30,13 +31,46 @@ function createServerProxy(echoMode = false, deps = {}) {
 
   // Create UDP socket for sending responses to clients
   const clientResponseSocket = dgramImpl.createSocket("udp4");
+  const NAT_KEEPALIVE_PACKET = Buffer.from("UDPSPLITR:KA");
 
   let incomingTraffic = 0;
   let outgoingTraffic = 0;
+  let natClientResponseRinfo = null;
 
   function displayTraffic() {
     log(
       `Traffic - In: ${incomingTraffic} bytes, Out: ${outgoingTraffic} bytes`
+    );
+  }
+
+  function getClientResponseRinfo() {
+    if (NAT_TRAVERSAL) {
+      return natClientResponseRinfo;
+    }
+
+    return {
+      address: CLIENT_RESPONSE_IP,
+      port: CLIENT_RESPONSE_PORT,
+    };
+  }
+
+  function sendClientResponse(message, dropLabel, errorLabel) {
+    const clientResponseRinfo = getClientResponseRinfo();
+
+    if (!clientResponseRinfo) {
+      error(`Dropping ${dropLabel} because no NAT response endpoint is bound`);
+      return;
+    }
+
+    clientResponseSocket.send(
+      message,
+      clientResponseRinfo.port,
+      clientResponseRinfo.address,
+      (err) => {
+        if (err) {
+          error(`Error ${errorLabel}: ${err.message}`);
+        }
+      }
     );
   }
 
@@ -95,19 +129,22 @@ function createServerProxy(echoMode = false, deps = {}) {
     outgoingTraffic += msg.length;
 
     // Echo the message back to the client
-    clientResponseSocket.send(
-      msg,
-      CLIENT_RESPONSE_PORT,
-      CLIENT_RESPONSE_IP,
-      (err) => {
-        if (err) {
-          error(`Error echoing message: ${err.message}`);
-        }
-      }
-    );
+    sendClientResponse(msg, "echo response", "echoing message");
   }
 
-  serverSocket.on("message", echoMode ? handleMessageEcho : handleMessage);
+  serverSocket.on("message", (msg, rinfo) => {
+    if (NAT_TRAVERSAL && msg.equals(NAT_KEEPALIVE_PACKET)) {
+      natClientResponseRinfo = { address: rinfo.address, port: rinfo.port };
+      return;
+    }
+
+    if (echoMode) {
+      handleMessageEcho(msg);
+      return;
+    }
+
+    handleMessage(msg);
+  });
 
   if (!echoMode) {
     // Receive the response from the target server
@@ -121,17 +158,7 @@ function createServerProxy(echoMode = false, deps = {}) {
       outgoingTraffic += response.length;
 
       // Forward the response back to the client
-      clientResponseSocket.send(
-        response,
-        CLIENT_RESPONSE_PORT,
-        CLIENT_RESPONSE_IP,
-        (err) => {
-          if (err) {
-            error(`Error forwarding response to client: ${err.message}`);
-            return;
-          }
-        }
-      );
+      sendClientResponse(response, "response", "forwarding response to client");
     });
   }
 

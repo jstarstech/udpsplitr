@@ -311,6 +311,46 @@ test("client proxy logs traffic on interval and stdin line", () => {
   );
 });
 
+test("client proxy sends nat keepalives from the response socket", () => {
+  const dgram = createFakeDgram();
+  const timers = createTimerHarness();
+  const { logger } = createLogger();
+
+  const proxy = createClientProxy(false, {
+    config: {
+      CLIENT_IP: "127.0.0.1",
+      CLIENT_PROXY_PORT: 3000,
+      CLIENT_RESPONSE_PORT: 3001,
+      SERVER_IP: "127.0.0.1",
+      SERVER_PORT: 4000,
+      MTU_SIZE: 1450,
+      NAT_TRAVERSAL: true,
+    },
+    dgram,
+    readline: fakeReadline,
+    logger,
+    setInterval: timers.setInterval,
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
+    now: () => 1000,
+    exit: () => {
+      throw new Error("unexpected exit");
+    },
+  });
+
+  const [, clientResponseSocket] = dgram.sockets;
+
+  assert.equal(clientResponseSocket.sendCalls.length, 1);
+  assert.equal(clientResponseSocket.sendCalls[0].message.toString(), "UDPSPLITR:KA");
+  assert.equal(clientResponseSocket.sendCalls[0].port, 4000);
+  assert.equal(clientResponseSocket.sendCalls[0].address, "127.0.0.1");
+
+  timers.runInterval(5000);
+
+  assert.equal(clientResponseSocket.sendCalls.length, 2);
+  assert.deepEqual(proxy.getActiveClientRinfo(), null);
+});
+
 test("client proxy exits when a socket emits an error", () => {
   const dgram = createFakeDgram();
   const timers = createTimerHarness();
@@ -895,6 +935,87 @@ test("server normal mode forwards to target and relays the target response", () 
   assert.equal(clientResponseSocket.sendCalls.length, 1);
   assert.equal(clientResponseSocket.sendCalls[0].address, "127.0.0.1");
   assert.equal(clientResponseSocket.sendCalls[0].port, 6000);
+  assert.equal(clientResponseSocket.sendCalls[0].message.toString(), "reply");
+  assert.deepEqual(errors, []);
+});
+
+test("server echo mode uses learned nat response endpoint", () => {
+  const dgram = createFakeDgram();
+  const timers = createTimerHarness();
+  const { logger, errors } = createLogger();
+
+  createServerProxy(true, {
+    config: {
+      SERVER_IP: "127.0.0.1",
+      SERVER_PORT: 4000,
+      TARGET_IP: "127.0.0.1",
+      TARGET_PORT: 5000,
+      CLIENT_RESPONSE_IP: "127.0.0.1",
+      CLIENT_RESPONSE_PORT: 6000,
+      MTU_SIZE: 1450,
+      NAT_TRAVERSAL: true,
+    },
+    dgram,
+    readline: fakeReadline,
+    logger,
+    setInterval: timers.setInterval,
+    exit: () => {
+      throw new Error("unexpected exit");
+    },
+  });
+
+  const [serverSocket, , clientResponseSocket] = dgram.sockets;
+
+  serverSocket.emit("message", Buffer.from("UDPSPLITR:KA"), {
+    address: "203.0.113.10",
+    port: 45000,
+  });
+  serverSocket.emit("message", Buffer.from("hello"));
+
+  assert.equal(clientResponseSocket.sendCalls.length, 1);
+  assert.equal(clientResponseSocket.sendCalls[0].address, "203.0.113.10");
+  assert.equal(clientResponseSocket.sendCalls[0].port, 45000);
+  assert.equal(clientResponseSocket.sendCalls[0].message.toString(), "hello");
+  assert.deepEqual(errors, []);
+});
+
+test("server normal mode uses learned nat response endpoint", () => {
+  const dgram = createFakeDgram();
+  const timers = createTimerHarness();
+  const { logger, errors } = createLogger();
+
+  createServerProxy(false, {
+    config: {
+      SERVER_IP: "127.0.0.1",
+      SERVER_PORT: 4000,
+      TARGET_IP: "127.0.0.1",
+      TARGET_PORT: 5000,
+      CLIENT_RESPONSE_IP: "127.0.0.1",
+      CLIENT_RESPONSE_PORT: 6000,
+      MTU_SIZE: 1450,
+      NAT_TRAVERSAL: true,
+    },
+    dgram,
+    readline: fakeReadline,
+    logger,
+    setInterval: timers.setInterval,
+    exit: () => {
+      throw new Error("unexpected exit");
+    },
+  });
+
+  const [serverSocket, targetSocket, clientResponseSocket] = dgram.sockets;
+
+  serverSocket.emit("message", Buffer.from("UDPSPLITR:KA"), {
+    address: "203.0.113.10",
+    port: 45000,
+  });
+  serverSocket.emit("message", Buffer.from("hello"));
+  targetSocket.emit("message", Buffer.from("reply"));
+
+  assert.equal(clientResponseSocket.sendCalls.length, 1);
+  assert.equal(clientResponseSocket.sendCalls[0].address, "203.0.113.10");
+  assert.equal(clientResponseSocket.sendCalls[0].port, 45000);
   assert.equal(clientResponseSocket.sendCalls[0].message.toString(), "reply");
   assert.deepEqual(errors, []);
 });

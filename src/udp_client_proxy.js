@@ -17,13 +17,15 @@ function startClient(pingMode = false) {
   const clientProxySocket = dgram.createSocket("udp4");
   const clientResponseSocket = dgram.createSocket("udp4");
   const serverSocket = dgram.createSocket("udp4");
+  const PROBE_ID_BYTES = 8;
+  const PROBE_TIMEOUT_MS = 30000;
 
   let activeClientRinfo = null;
+  let nextProbeId = 0n;
+  const pendingProbes = new Map();
 
   let incomingTraffic = 0;
   let outgoingTraffic = 0;
-  let sentMessage = null;
-  let sentTime = null;
 
   function displayTraffic() {
     console.log(
@@ -106,9 +108,27 @@ function startClient(pingMode = false) {
 
     incomingTraffic += msg.length;
 
-    if (pingMode && sentMessage && msg.equals(sentMessage)) {
-      const latency = Date.now() - sentTime;
-      console.log(`Echo message received. Latency: ${latency} ms`);
+    if (pingMode) {
+      if (msg.length < PROBE_ID_BYTES) {
+        console.error("Dropping ping response without a probe id");
+        return;
+      }
+
+      const probeId = msg.readBigUInt64BE(0);
+      const pendingProbe = pendingProbes.get(probeId);
+
+      if (pendingProbe === undefined) {
+        console.error(`Dropping ping response for unknown probe ${probeId}`);
+        return;
+      }
+
+      clearTimeout(pendingProbe.timeoutId);
+      pendingProbes.delete(probeId);
+
+      const latency = Date.now() - pendingProbe.sentTime;
+      console.log(
+        `Echo message received for probe ${probeId}. Latency: ${latency} ms`
+      );
       return;
     }
 
@@ -135,15 +155,28 @@ function startClient(pingMode = false) {
     console.log("Start pinging server every 2 seconds");
 
     setInterval(() => {
-      sentMessage = Buffer.from("Echo test message");
-      sentTime = Date.now();
+      const probeId = nextProbeId++;
+      const payload = Buffer.from("Echo test message");
+      const sentMessage = Buffer.allocUnsafe(PROBE_ID_BYTES + payload.length);
+      sentMessage.writeBigUInt64BE(probeId, 0);
+      payload.copy(sentMessage, PROBE_ID_BYTES);
+      const sentTime = Date.now();
+      const timeoutId = setTimeout(() => {
+        if (pendingProbes.delete(probeId)) {
+          console.error(`Ping probe ${probeId} timed out after ${PROBE_TIMEOUT_MS} ms`);
+        }
+      }, PROBE_TIMEOUT_MS);
+
+      pendingProbes.set(probeId, { sentTime, timeoutId });
 
       outgoingTraffic += sentMessage.length;
 
-      console.log("Sending ping messages to the server");
+      console.log(`Sending ping message ${probeId} to the server`);
 
       serverSocket.send(sentMessage, SERVER_PORT, SERVER_IP, (err) => {
         if (err) {
+          clearTimeout(timeoutId);
+          pendingProbes.delete(probeId);
           console.error(`Error sending ping message: ${err.message}`);
         }
       });

@@ -47,13 +47,37 @@ When `NAT_TRAVERSAL` is enabled, the client response socket periodically sends a
 
 ## Usage
 
+### Create Configuration
+
+Generate an initial `.env` file in the current directory:
+
+```sh
+npx udpsplitr server --init-env
+npx udpsplitr client --init-env
+```
+
+For local development from the cloned repository:
+
+```sh
+node app.js server --init-env
+node app.js client --init-env
+```
+
+The command copies the packaged [env.example](env.example) file and sets `MODE` for the selected role. It will not overwrite an existing `.env` unless `--force` is passed.
+
 ### Running the Proxy
 
-Use the `app.js` entry file to start the proxy in either server or client mode.
+Use the `udpsplitr` command after installing from npm, or `node app.js` when running from the cloned repository.
 
 You can pass the mode as a CLI argument or via `MODE=server|client` in the environment. If both are set, the CLI argument wins.
 
 #### Server Mode
+
+```sh
+npx udpsplitr server
+```
+
+Local development:
 
 ```sh
 node app.js server
@@ -62,14 +86,20 @@ node app.js server
 #### Client Mode
 
 ```sh
+npx udpsplitr client
+```
+
+Local development:
+
+```sh
 node app.js client
 ```
 
 #### Environment Mode
 
 ```sh
-MODE=server node app.js
-MODE=client node app.js
+MODE=server npx udpsplitr
+MODE=client npx udpsplitr
 ```
 
 ## Running Tests
@@ -98,7 +128,7 @@ docker run -d --rm --env-file .env --name udpsplitr-client udpsplitr node app.js
 
 ### Client-Server Compose
 
-Copy [env.example](/home/maks/Development/personal/udpsplit/env.example) to `.env` on each machine:
+Copy [env.example](env.example) to `.env` on each machine:
 
 ```sh
 cp env.example .env

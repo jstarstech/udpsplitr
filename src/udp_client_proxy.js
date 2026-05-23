@@ -79,7 +79,7 @@ function createClientProxy(pingMode = false, deps = {}) {
 
   setIntervalImpl(displayTraffic, 10000); // Display traffic every 10 seconds
 
-  const rl = readline.createInterface({
+  const rl = readlineImpl.createInterface({
     input: process.stdin,
     output: process.stdout,
   });

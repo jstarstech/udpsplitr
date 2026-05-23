@@ -11,7 +11,7 @@
     "start": "node app.js",
     "test": "node --test",
     "check": "node --check app.js src/*.js",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm run check && npm test"
   },
   "engines": {
     "node": ">=18"
@@ -36,6 +36,7 @@
   "files": [
     "app.js",
     "src/",
+    "env.example",
     "README.md",
     "LICENSE"
   ],

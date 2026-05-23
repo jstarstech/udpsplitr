@@ -5,7 +5,7 @@
   "main": "app.js",
   "type": "module",
   "bin": {
-    "udpsplitr": "./app.js"
+    "udpsplitr": "app.js"
   },
   "scripts": {
     "start": "node app.js",
@@ -26,7 +26,7 @@
   "author": "jstarstech",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jstarstech/udpsplitr.git"
+    "url": "git+https://github.com/jstarstech/udpsplitr.git"
   },
   "bugs": {
     "url": "https://github.com/jstarstech/udpsplitr/issues"

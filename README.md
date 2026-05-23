@@ -2,6 +2,14 @@
 
 UDPSplitR is a UDP proxy that splits outgoing and incoming traffic across different ports. The client sends proxied packets from one local port and listens for server responses on another, while the server receives client packets and forwards them to `TARGET_IP:TARGET_PORT`.
 
+<p align="">
+  <a href="https://www.npmjs.com/package/udpsplitr"><img src="https://img.shields.io/npm/v/udpsplitr?style=for-the-badge" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/udpsplitr"><img src="https://img.shields.io/npm/l/udpsplitr?style=for-the-badge" alt="MIT License" /></a>
+  <a href="https://github.com/jstarstech/udpsplitr"><img src="https://img.shields.io/badge/github-repo-blue?logo=github&style=for-the-badge" alt="Build status" /></a>
+</p>
+
+---
+
 The tool is useful when a UDP flow needs separate paths for input and output traffic between the client-side proxy and the server-side proxy.
 
 The client side intentionally supports one active local UDP peer at a time. The first peer that sends traffic owns the return path; packets from other peers are rejected so responses are not accidentally delivered to the wrong process.
@@ -47,86 +55,154 @@ When `NAT_TRAVERSAL` is enabled, the client response socket periodically sends a
 
 ## Usage
 
-### Create Configuration
+### Run With npx
 
-Generate an initial `.env` file in the current directory:
+Run the proxy directly from npm without installing it globally.
+
+Generate configuration:
+
+#### Server Machine
 
 ```sh
 npx udpsplitr server --init-env
-npx udpsplitr client --init-env
 ```
 
-For local development from the cloned repository:
+#### Client Machine
 
 ```sh
-node app.js server --init-env
-node app.js client --init-env
+npx udpsplitr client --init-env
 ```
 
 The command copies the packaged [env.example](env.example) file and sets `MODE` for the selected role. It will not overwrite an existing `.env` unless `--force` is passed.
 
-### Running the Proxy
+Run the proxy:
 
-Use the `udpsplitr` command after installing from npm, or `node app.js` when running from the cloned repository.
-
-You can pass the mode as a CLI argument or via `MODE=server|client` in the environment. If both are set, the CLI argument wins.
-
-#### Server Mode
+#### Server Machine
 
 ```sh
 npx udpsplitr server
 ```
 
-Local development:
-
-```sh
-node app.js server
-```
-
-#### Client Mode
+#### Client Machine
 
 ```sh
 npx udpsplitr client
 ```
 
-Local development:
+### Install Globally
+
+Install the command once and run it as `udpsplitr`:
 
 ```sh
-node app.js client
+npm install -g udpsplitr
 ```
 
-#### Environment Mode
+Generate configuration:
+
+#### Server Machine
 
 ```sh
-MODE=server npx udpsplitr
-MODE=client npx udpsplitr
+udpsplitr server --init-env
 ```
 
-## Running Tests
-
-To run the tests for this project, use the following command:
+#### Client Machine
 
 ```sh
-npm test
+udpsplitr client --init-env
+```
+
+Run the proxy:
+
+#### Server Machine
+
+```sh
+udpsplitr server
+```
+
+#### Client Machine
+
+```sh
+udpsplitr client
 ```
 
 ## Docker
+
+### Create Configuration
+
+Use a temporary container to generate a local `.env` file before running Docker examples.
+
+#### Server Machine
+
+```sh
+docker run --rm -v "$PWD:/config" -w /config ghcr.io/jstarstech/udpsplitr:latest node app.js server --init-env
+```
+
+#### Client Machine
+
+```sh
+docker run --rm -v "$PWD:/config" -w /config ghcr.io/jstarstech/udpsplitr:latest node app.js client --init-env
+```
 
 ### Temporary Echo/Ping
 
 #### Server Machine
 
 ```sh
-docker run -d --rm --env-file .env --name udpsplitr-server udpsplitr node app.js server --echo-mode
+docker run -d --rm --env-file .env --name udpsplitr-server ghcr.io/jstarstech/udpsplitr:latest node app.js server --echo-mode
 ```
 
 #### Client Machine
 
 ```sh
-docker run -d --rm --env-file .env --name udpsplitr-client udpsplitr node app.js client --ping-mode
+docker run -d --rm --env-file .env --name udpsplitr-client ghcr.io/jstarstech/udpsplitr:latest node app.js client --ping-mode
 ```
 
-### Client-Server Compose
+## Development
+
+Clone Repository
+
+```sh
+git clone https://github.com/jstarstech/udpsplitr.git
+cd udpsplitr
+npm install
+```
+
+### Local Configuration
+
+#### Server Machine
+
+```sh
+node app.js server --init-env
+```
+
+#### Client Machine
+
+```sh
+node app.js client --init-env
+```
+
+### Local Run
+
+#### Server Machine
+
+```sh
+node app.js server
+```
+
+#### Client Machine
+
+```sh
+node app.js client
+```
+
+### Checks And Tests
+
+```sh
+npm run check
+npm test
+```
+
+### Docker Compose
 
 Copy [env.example](env.example) to `.env` on each machine:
 
@@ -149,7 +225,3 @@ Run Compose normally on both machines:
 ```sh
 docker compose up --build
 ```
-
-The server machine should use `MODE=server`. The client machine should use `MODE=client`.
-
-The Compose service loads environment values from the project `.env` file.

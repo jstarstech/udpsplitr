@@ -88,6 +88,7 @@ test("main returns usage code for invalid args", () => {
   const messages = [];
 
   const exitCode = main([], {
+    env: {},
     logger: { info: (message) => messages.push(message) },
   });
 
@@ -192,6 +193,7 @@ test("direct execution without args exits with usage", () => {
       execFileSync(process.execPath, ["app.js"], {
         cwd,
         encoding: "utf8",
+        env: { ...process.env, MODE: "" },
       }),
     (error) => {
       assert.equal(error.status, 1);

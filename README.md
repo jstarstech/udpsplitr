@@ -1,8 +1,27 @@
 # UDPSplitR
 
-This project implements a UDP proxy that forwards traffic between a client and a server. The proxy is split into two parts: a client-side proxy and a server-side proxy. The client listens on two ports: one for proxying incoming data and another for receiving responses from the server. The server listens on a port for incoming data from the client and connects to the target IP:port to proxy data coming from the client proxy port.
+UDPSplitR is a UDP proxy that splits outgoing and incoming traffic across different ports. The client sends proxied packets from one local port and listens for server responses on another, while the server receives client packets and forwards them to `TARGET_IP:TARGET_PORT`.
 
-The client-side proxy currently supports one active upstream client at a time. If a second client sends traffic on the proxy port, the packet is rejected instead of stealing the return path.
+The tool is useful when a UDP flow needs separate paths for input and output traffic between the client-side proxy and the server-side proxy.
+
+The client side intentionally supports one active local UDP peer at a time. The first peer that sends traffic owns the return path; packets from other peers are rejected so responses are not accidentally delivered to the wrong process.
+
+For deployments behind NAT, the experimental `NAT_TRAVERSAL` option can make the client response socket send keepalive packets. This lets the server learn the observed return endpoint instead of relying only on the configured `CLIENT_RESPONSE_IP` and `CLIENT_RESPONSE_PORT`.
+
+## Traffic Schema
+
+```text
+                 outgoing path
+┌───────────────┐   CLIENT_PROXY_PORT   ┌───────────────────┐   SERVER_PORT   ┌───────────────────┐   TARGET_PORT   ┌──────────────┐
+│ Local UDP app │ ────────────────────> │ UDPSplitR client  │ ──────────────> │ UDPSplitR server  │ ──────────────> │ Target UDP   │
+└───────────────┘                       └───────────────────┘                 └───────────────────┘                 └──────────────┘
+        ▲                                      │                                  │                                │
+        │                                      │                                  │                                │
+        └──────────────────────────────────────┘ <────────────────────────────────┘ <──────────────────────────────┘
+              CLIENT_RESPONSE_PORT                         response path
+```
+
+The important part is that the client-side proxy uses different ports for the two directions: `CLIENT_PROXY_PORT` for incoming local traffic and `CLIENT_RESPONSE_PORT` for responses from the server.
 
 In `--ping-mode`, the client prepends a probe ID to each echo payload and matches responses by that ID. The console output is formatted like standard `ping`, with a `PING ...` banner, 1-second probe intervals, and per-probe latency lines.
 
